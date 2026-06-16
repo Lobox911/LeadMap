@@ -196,17 +196,21 @@ useEffect(() => {
             className="desktop-toggle"
             onClick={() => setSidebarOpen(!sidebarOpen)}
             aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 14, flexShrink: 0, height: '100%',
-              background: '#070810',
-              borderRight: '1px solid #1e2235',
-              border: 'none',
-              borderRight: '1px solid #1e2235',
-              color: '#272a3d',
-              cursor: 'pointer',
-              transition: 'color 0.15s, background 0.15s',
-            }}
+          
+          
+           style={{
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  width: 14, flexShrink: 0, height: '100%',
+  background: '#070810',
+  border: 'none',
+  borderRight: '1px solid #1e2235',
+  color: '#272a3d',
+  cursor: 'pointer',
+  transition: 'color 0.15s, background 0.15s',
+}}
+
+
+
             onMouseEnter={e => {
               const t = e.currentTarget
               t.style.color = '#00d4ff'
