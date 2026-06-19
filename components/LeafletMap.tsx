@@ -1,13 +1,12 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Business } from '@/types'
 import MapPopup from './MapPopup'
 
-// Fix default icon paths in Next.js
 const fixIcon = () => {
   delete (L.Icon.Default.prototype as any)._getIconUrl
   L.Icon.Default.mergeOptions({
@@ -42,9 +41,11 @@ interface Props {
   center: [number, number] | null
   selectedId: string | null
   onSelectBusiness: (id: string) => void
+  onSave: (b: Business) => void
+  savedIds: Set<string>
 }
 
-export default function LeafletMap({ businesses, center, selectedId, onSelectBusiness }: Props) {
+export default function LeafletMap({ businesses, center, selectedId, onSelectBusiness, onSave, savedIds }: Props) {
   useEffect(() => { fixIcon() }, [])
 
   const withCoords = businesses.filter(b => b.lat !== null && b.lon !== null)
@@ -58,7 +59,7 @@ export default function LeafletMap({ businesses, center, selectedId, onSelectBus
     >
       <TileLayer
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
       <MapController center={center} />
       {withCoords.map(b => (
@@ -69,7 +70,7 @@ export default function LeafletMap({ businesses, center, selectedId, onSelectBus
           eventHandlers={{ click: () => onSelectBusiness(b.id) }}
         >
           <Popup>
-            <MapPopup business={b} />
+            <MapPopup business={b} onSave={onSave} isSaved={savedIds.has(b.id)} />
           </Popup>
         </Marker>
       ))}
