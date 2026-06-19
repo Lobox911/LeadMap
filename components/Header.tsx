@@ -1,6 +1,5 @@
 'use client'
 
-import { IconRadar, IconBookmark, IconDownload, IconChevronDown, IconDatabase, IconSearch } from '@tabler/icons-react'
 import { useState, useRef, useEffect } from 'react'
 import { Business } from '@/types'
 import { exportToCsv, exportToJson } from '@/lib/exportUtils'
@@ -20,160 +19,176 @@ export default function Header({ activeTab, onTabChange, savedCount, resultsCoun
   const [showExport, setShowExport] = useState(false)
   const [showResultsExport, setShowResultsExport] = useState(false)
   const exportRef = useRef<HTMLDivElement>(null)
-  const resultsExportRef = useRef<HTMLDivElement>(null)
+  const resultsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
+    const h = (e: MouseEvent) => {
       if (exportRef.current && !exportRef.current.contains(e.target as Node)) setShowExport(false)
-      if (resultsExportRef.current && !resultsExportRef.current.contains(e.target as Node)) setShowResultsExport(false)
+      if (resultsRef.current && !resultsRef.current.contains(e.target as Node)) setShowResultsExport(false)
     }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
   }, [])
 
-  const label = searchLabel || 'search-results'
+  const label = searchLabel || 'websitegap-results'
 
   const dropdownStyle: React.CSSProperties = {
     position: 'absolute', right: 0, top: 'calc(100% + 6px)',
-    width: 200, background: '#0c0e1a', border: '1px solid #1e2235',
-    borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.6)', overflow: 'hidden', zIndex: 100,
+    width: 200, background: 'white', border: '1px solid #c6c6cd',
+    borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', overflow: 'hidden', zIndex: 100,
   }
 
   const dropdownBtnStyle: React.CSSProperties = {
     width: '100%', padding: '10px 14px', background: 'none', border: 'none',
-    color: '#8b8fa8', fontSize: 11, cursor: 'pointer', textAlign: 'left',
+    color: '#45464d', fontSize: 13, cursor: 'pointer', textAlign: 'left',
     display: 'flex', alignItems: 'center', gap: 8,
-    fontFamily: 'var(--font-geist-mono), monospace', transition: 'background 0.1s',
-  }
-
-  const btnStyle: React.CSSProperties = {
-    display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px',
-    background: '#0c0e1a', border: '1px solid #1e2235', borderRadius: 8,
-    color: '#8b8fa8', fontSize: 11, fontWeight: 600, cursor: 'pointer',
-    transition: 'all 0.15s',
+    fontFamily: 'JetBrains Mono, monospace', transition: 'background 0.1s',
   }
 
   return (
     <header style={{
-      height: 52, borderBottom: '1px solid #1e2235',
-      background: 'rgba(7,8,16,0.97)',
-      backdropFilter: 'blur(12px)',
-      position: 'sticky', top: 0, zIndex: 40,
+      height: 56, borderBottom: '1px solid #c6c6cd',
+      background: 'white', position: 'sticky', top: 0, zIndex: 40,
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '0 16px', gap: 12,
-    }}>
-
+      padding: '0 16px', gap: 10,
+      boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+    }} className="md:px-6" >
       {/* Logo */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <IconRadar size={14} stroke={1.5} style={{ color: '#00d4ff' }} />
-        </div>
-        <span style={{ fontSize: 14, fontWeight: 800, color: '#e2e4f0', letterSpacing: '-0.02em' }}>WebsiteGap</span>
-        <span style={{ fontSize: 9, fontWeight: 700, color: '#454860', border: '1px solid #1e2235', padding: '2px 6px', borderRadius: 5, fontFamily: 'var(--font-geist-mono), monospace', letterSpacing: '0.08em' }}>FREE</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 32, flexShrink: 0, minWidth: 0 }}>
+        <h1 style={{ fontSize: 17, fontWeight: 700, color: '#000000', letterSpacing: '-0.02em', whiteSpace: 'nowrap' }} className="md:text-xl">WebsiteGap</h1>
+        <nav style={{ display: 'none', gap: 4 }} className="hidden md:flex">
+          {(['search', 'leads'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => onTabChange(tab)}
+              style={{
+                padding: '6px 14px', borderRadius: 0,
+                border: 'none', cursor: 'pointer',
+                background: 'transparent',
+                color: activeTab === tab ? '#006591' : '#45464d',
+                fontSize: 13, fontWeight: activeTab === tab ? 600 : 400,
+                fontFamily: 'JetBrains Mono, monospace',
+                transition: 'all 0.15s',
+                borderBottom: activeTab === tab ? '2px solid #006591' : '2px solid transparent',
+                display: 'flex', alignItems: 'center',
+              }}
+            >
+              {tab === 'search' ? 'Dashboard' : 'Saved Leads'}
+              {tab === 'leads' && savedCount > 0 && (
+                <span suppressHydrationWarning style={{ marginLeft: 6, background: '#006591', color: 'white', fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 99 }}>
+                  {savedCount}
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
       </div>
 
-      {/* Center stats */}
+      {/* Mobile tab switcher (compact pill, replaces hidden nav on small screens) */}
+      <div className="flex md:hidden" style={{ alignItems: 'center', background: '#f6f3f5', borderRadius: 8, padding: 2, gap: 2, flexShrink: 0 }}>
+        {(['search', 'leads'] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => onTabChange(tab)}
+            style={{
+              padding: '5px 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
+              background: activeTab === tab ? 'white' : 'transparent',
+              color: activeTab === tab ? '#006591' : '#45464d',
+              fontSize: 11, fontWeight: 600, fontFamily: 'JetBrains Mono, monospace',
+              boxShadow: activeTab === tab ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              position: 'relative', whiteSpace: 'nowrap',
+            }}
+          >
+            {tab === 'search' ? 'Search' : 'Saved'}
+            {tab === 'leads' && savedCount > 0 && (
+              <span suppressHydrationWarning style={{ marginLeft: 4, background: '#006591', color: 'white', fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 99 }}>
+                {savedCount}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Center stats — desktop only */}
       {resultsCount > 0 && activeTab === 'search' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 14px', background: '#0c0e1a', border: '1px solid #1e2235', borderRadius: 99, fontSize: 11, fontFamily: 'var(--font-geist-mono), monospace', overflow: 'hidden', maxWidth: 400 }}>
-          <span style={{ color: '#454860', whiteSpace: 'nowrap' }}>
-            <span style={{ color: '#e2e4f0', fontWeight: 700 }}>{resultsCount}</span> found
-          </span>
-          <span style={{ width: 1, height: 12, background: '#1e2235', flexShrink: 0 }} />
-          <span style={{ color: '#454860', whiteSpace: 'nowrap' }}>
-            <span style={{ color: '#00d4ff', fontWeight: 700 }}>{noWebsiteCount}</span> no website
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '5px 14px', background: '#f6f3f5', border: '1px solid #e4e2e4', borderRadius: 99, fontSize: 12, fontFamily: 'JetBrains Mono, monospace' }} className="hidden lg:flex">
+          <span style={{ color: '#45464d' }}><span style={{ color: '#1b1b1d', fontWeight: 700 }}>{resultsCount}</span> found</span>
+          <span style={{ width: 1, height: 12, background: '#c6c6cd' }} />
+          <span style={{ color: '#45464d' }}><span style={{ color: '#ba1a1a', fontWeight: 700 }}>{noWebsiteCount}</span> no website</span>
           {searchLabel && (
             <>
-              <span style={{ width: 1, height: 12, background: '#1e2235', flexShrink: 0 }} />
-              <span style={{ color: '#454860', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>{searchLabel}</span>
+              <span style={{ width: 1, height: 12, background: '#c6c6cd' }} />
+              <span style={{ color: '#76777d', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{searchLabel}</span>
             </>
           )}
         </div>
       )}
 
       {/* Right actions */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
 
-        {/* Export current results */}
+        {/* Export current results — icon only on mobile */}
         {currentResults.length > 0 && activeTab === 'search' && (
-          <div style={{ position: 'relative' }} ref={resultsExportRef}>
-            <button onClick={() => setShowResultsExport(!showResultsExport)} style={btnStyle}>
-              <IconSearch size={11} stroke={1.5} />
-              Results
-              <IconChevronDown size={10} stroke={2} style={{ transform: showResultsExport ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+          <div style={{ position: 'relative' }} ref={resultsRef}>
+            <button
+              onClick={() => setShowResultsExport(!showResultsExport)}
+              className="btn-ghost"
+              style={{ padding: '7px 10px' }}
+            >
+              <span aria-hidden>↓</span>
+              <span className="hidden sm:inline" style={{ marginLeft: 4 }}>Results</span>
             </button>
             {showResultsExport && (
-              <div style={dropdownStyle}>
-                <div style={{ padding: '10px 14px', borderBottom: '1px solid #1e2235' }}>
-                  <p style={{ fontSize: 9, fontWeight: 700, color: '#454860', fontFamily: 'var(--font-geist-mono), monospace', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Export Search Results</p>
-                  <p style={{ fontSize: 10, color: '#272a3d', fontFamily: 'var(--font-geist-mono), monospace', marginTop: 2 }}>{currentResults.length} businesses</p>
+              <div style={{ ...dropdownStyle, right: 0 }}>
+                <div style={{ padding: '10px 14px', borderBottom: '1px solid #e4e2e4' }}>
+                  <p style={{ fontSize: 10, fontWeight: 700, color: '#76777d', fontFamily: 'JetBrains Mono, monospace', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Export Search Results</p>
+                  <p style={{ fontSize: 11, color: '#c6c6cd', fontFamily: 'JetBrains Mono, monospace', marginTop: 2 }}>{currentResults.length} businesses</p>
                 </div>
-                <button onClick={() => { exportToCsv(currentResults, label + '.csv'); setShowResultsExport(false) }} style={dropdownBtnStyle}>
-                  <IconDownload size={11} stroke={1.5} /> Export as CSV
+                <button onClick={() => { exportToCsv(currentResults, label + '.csv'); setShowResultsExport(false) }} style={dropdownBtnStyle} onMouseEnter={e => (e.target as HTMLElement).style.background = '#f6f3f5'} onMouseLeave={e => (e.target as HTMLElement).style.background = 'none'}>
+                  Export CSV
                 </button>
-                <div style={{ height: 1, background: '#1e2235' }} />
-                <button onClick={() => { exportToJson(currentResults, label + '.json'); setShowResultsExport(false) }} style={dropdownBtnStyle}>
-                  <IconDownload size={11} stroke={1.5} /> Export as JSON
+                <div style={{ height: 1, background: '#e4e2e4' }} />
+                <button onClick={() => { exportToJson(currentResults, label + '.json'); setShowResultsExport(false) }} style={dropdownBtnStyle} onMouseEnter={e => (e.target as HTMLElement).style.background = '#f6f3f5'} onMouseLeave={e => (e.target as HTMLElement).style.background = 'none'}>
+                  Export JSON
                 </button>
               </div>
             )}
           </div>
         )}
 
-        {/* Search / Saved tabs */}
-        <div style={{ display: 'flex', alignItems: 'center', background: '#0c0e1a', border: '1px solid #1e2235', borderRadius: 9, padding: 3, gap: 2 }}>
-          {(['search', 'leads'] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => onTabChange(tab)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '5px 10px', borderRadius: 7,
-                border: activeTab === tab ? '1px solid rgba(0,212,255,0.2)' : '1px solid transparent',
-                background: activeTab === tab ? 'rgba(0,212,255,0.08)' : 'transparent',
-                color: activeTab === tab ? '#00d4ff' : '#454860',
-                fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
-              }}
-            >
-              {tab === 'search' ? <IconSearch size={11} stroke={1.5} /> : <IconBookmark size={11} stroke={1.5} />}
-              {tab === 'search' ? 'Search' : 'Saved'}
-              {tab === 'leads' && savedCount > 0 && (
-                <span
-                  suppressHydrationWarning
-                  style={{ background: '#00d4ff', color: '#070810', fontSize: 8, fontWeight: 800, padding: '1px 5px', borderRadius: 99, minWidth: 14, textAlign: 'center' }}
-                >
-                  {savedCount}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Export saved leads */}
+        {/* Export saved leads — icon only on mobile */}
         {savedLeads.length > 0 && (
           <div style={{ position: 'relative' }} ref={exportRef}>
-            <button onClick={() => setShowExport(!showExport)} style={btnStyle}>
-              <IconDatabase size={11} stroke={1.5} />
-              Leads
-              <IconChevronDown size={10} stroke={2} style={{ transform: showExport ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+            <button
+              onClick={() => setShowExport(!showExport)}
+              className="btn-ghost"
+              style={{ padding: '7px 10px' }}
+            >
+              <span aria-hidden>↓</span>
+              <span className="hidden sm:inline" style={{ marginLeft: 4 }}>Leads</span>
             </button>
             {showExport && (
-              <div style={dropdownStyle}>
-                <div style={{ padding: '10px 14px', borderBottom: '1px solid #1e2235' }}>
-                  <p style={{ fontSize: 9, fontWeight: 700, color: '#454860', fontFamily: 'var(--font-geist-mono), monospace', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Export Saved Leads</p>
-                  <p style={{ fontSize: 10, color: '#272a3d', fontFamily: 'var(--font-geist-mono), monospace', marginTop: 2 }}>{savedLeads.length} saved leads</p>
+              <div style={{ ...dropdownStyle, right: 0 }}>
+                <div style={{ padding: '10px 14px', borderBottom: '1px solid #e4e2e4' }}>
+                  <p style={{ fontSize: 10, fontWeight: 700, color: '#76777d', fontFamily: 'JetBrains Mono, monospace', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Export Saved Leads</p>
+                  <p style={{ fontSize: 11, color: '#c6c6cd', fontFamily: 'JetBrains Mono, monospace', marginTop: 2 }}>{savedLeads.length} leads</p>
                 </div>
-                <button onClick={() => { exportToCsv(savedLeads, 'websitegap-saved-leads.csv'); setShowExport(false) }} style={dropdownBtnStyle}>
-                  <IconDownload size={11} stroke={1.5} /> Export as CSV
+                <button onClick={() => { exportToCsv(savedLeads, 'websitegap-saved-leads.csv'); setShowExport(false) }} style={dropdownBtnStyle} onMouseEnter={e => (e.target as HTMLElement).style.background = '#f6f3f5'} onMouseLeave={e => (e.target as HTMLElement).style.background = 'none'}>
+                  Export CSV
                 </button>
-                <div style={{ height: 1, background: '#1e2235' }} />
-                <button onClick={() => { exportToJson(savedLeads, 'websitegap-saved-leads.json'); setShowExport(false) }} style={dropdownBtnStyle}>
-                  <IconDownload size={11} stroke={1.5} /> Export as JSON
+                <div style={{ height: 1, background: '#e4e2e4' }} />
+                <button onClick={() => { exportToJson(savedLeads, 'websitegap-saved-leads.json'); setShowExport(false) }} style={dropdownBtnStyle} onMouseEnter={e => (e.target as HTMLElement).style.background = '#f6f3f5'} onMouseLeave={e => (e.target as HTMLElement).style.background = 'none'}>
+                  Export JSON
                 </button>
               </div>
             )}
           </div>
         )}
+
+        {/* Upgrade button — compact on mobile */}
+        <a href="/#pricing" className="btn-primary" style={{ borderRadius: 99, padding: '7px 14px', fontSize: 12, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+          Upgrade
+        </a>
       </div>
     </header>
   )

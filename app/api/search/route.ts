@@ -4,7 +4,8 @@ import { checkRateLimit } from '@/lib/rateLimit'
 import { CATEGORY_NAMES } from '@/lib/osmCategories'
 import { verifyBusinessWebsites } from '@/lib/verifyWebsite'
 
-const VALID_RADII = [1000, 5000, 10000, 25000, 50000]
+const MIN_RADIUS = 1000
+const MAX_RADIUS = 50000
 const MAX_VERIFY = 10 // Google CSE free tier = 100/day, verify top 10 per search
 
 export async function POST(req: NextRequest) {
@@ -23,9 +24,10 @@ export async function POST(req: NextRequest) {
     if (typeof lon !== 'number' || lon < -180 || lon > 180) {
       return NextResponse.json({ error: 'Invalid longitude' }, { status: 400 })
     }
-    if (!VALID_RADII.includes(Number(radius))) {
-      return NextResponse.json({ error: 'Invalid radius' }, { status: 400 })
-    }
+    const radiusNum = Number(radius)
+if (!radiusNum || radiusNum < MIN_RADIUS || radiusNum > MAX_RADIUS) {
+  return NextResponse.json({ error: 'Invalid radius' }, { status: 400 })
+}
     if (!category || !CATEGORY_NAMES.includes(category)) {
       return NextResponse.json({ error: 'Invalid category' }, { status: 400 })
     }

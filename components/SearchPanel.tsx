@@ -1,10 +1,6 @@
 'use client'
 
-import { useState } from 'react'
-import {
-  IconTarget, IconMapPin, IconSearch, IconChevronDown,
-  IconCheck, IconSparkles, IconLoader2
-} from '@tabler/icons-react'
+import { useState, useEffect, useRef } from 'react'
 import { CATEGORY_NAMES } from '@/lib/osmCategories'
 
 const COUNTRIES = [
@@ -20,11 +16,11 @@ const COUNTRIES = [
 ].sort()
 
 const RADIUS_OPTIONS = [
-  { label: '1 km',  value: 1000  },
-  { label: '5 km',  value: 5000  },
-  { label: '10 km', value: 10000 },
-  { label: '25 km', value: 25000 },
-  { label: '50 km', value: 50000 },
+  { label: '1km', value: 1000 },
+  { label: '5km', value: 5000 },
+  { label: '10km', value: 10000 },
+  { label: '25km', value: 25000 },
+  { label: '50km', value: 50000 },
 ]
 
 interface Props {
@@ -37,206 +33,249 @@ interface Props {
 export default function SearchPanel({ onSearch, loading, geoLabel, onClearGeo }: Props) {
   const [country, setCountry] = useState('United States')
   const [city, setCity] = useState('')
+  const [suggestions, setSuggestions] = useState<{ label: string; lat: string; lon: string }[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false)
+  const suggestBoxRef = useRef<HTMLDivElement>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [category, setCategory] = useState('Restaurant')
   const [customCat, setCustomCat] = useState('')
   const [useCustom, setUseCustom] = useState(false)
   const [radius, setRadius] = useState(10000)
   const [showAll, setShowAll] = useState(false)
-  const [showCountryMenu, setShowCountryMenu] = useState(false)
-  const [countrySearch, setCountrySearch] = useState('')
+  const [radiusDisplay, setRadiusDisplay] = useState(10)
 
-  const filtered = COUNTRIES.filter(c => c.toLowerCase().includes(countrySearch.toLowerCase()))
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+
+    if (city.trim().length < 2) {
+      setSuggestions([])
+      return
+    }
+
+    debounceRef.current = setTimeout(async () => {
+      setLoadingSuggestions(true)
+      try {
+        const res = await fetch('/api/suggest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: city }),
+        })
+        const data = await res.json()
+        setSuggestions(data.suggestions || [])
+      } catch {
+        setSuggestions([])
+      } finally {
+        setLoadingSuggestions(false)
+      }
+    }, 350)
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [city])
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (suggestBoxRef.current && !suggestBoxRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!city.trim()) return
-    const loc = `${city.trim()}, ${country}`
     const cat = useCustom ? customCat.trim() : category
     if (!cat) return
-    onSearch({ location: loc, category: cat, radius, showAll })
+    const location = city.includes(',') ? city.trim() : city.trim() + ', ' + country
+    onSearch({ location, category: cat, radius, showAll })
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+
       {/* Header */}
-      <div className="flex items-center gap-2.5 pb-4 border-b border-[#1a1d2e]">
-        <div className="w-7 h-7 rounded-lg bg-[#00d4ff]/10 flex items-center justify-center">
-          <IconTarget size={15} stroke={1.5} className="text-[#00d4ff]" />
-        </div>
-        <div>
-          <p className="text-xs font-bold text-[#f0f0f5] tracking-wide uppercase">Target Search</p>
-          <p className="text-[10px] text-[#4a4d60] font-mono">OpenStreetMap · Free · No API key</p>
-        </div>
+      <div style={{ marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid #e4e2e4' }}>
+        <h2 style={{ fontSize: 16, fontWeight: 600, color: '#1b1b1d', marginBottom: 3 }}>Lead Filters</h2>
+        <p style={{ fontSize: 13, color: '#45464d' }}>Refine your search parameters</p>
       </div>
 
-      {/* Geocoded label */}
-      {geoLabel && (
-        <div className="flex items-center justify-between px-3 py-2 bg-[#00d4ff]/5 border border-[#00d4ff]/15 rounded-xl">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#00d4ff] shrink-0 animate-pulse" />
-            <p className="text-[10px] font-mono text-[#00d4ff] truncate">{geoLabel}</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20, flex: 1 }}>
+
+        {/* Geo chip */}
+        {geoLabel && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', background: '#c9e6ff', border: '1px solid #89ceff', borderRadius: 8 }}>
+            <span style={{ fontSize: 12, color: '#006591', fontFamily: 'JetBrains Mono, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              📍 {geoLabel}
+            </span>
+            <button type="button" onClick={onClearGeo} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#006591', padding: '0 4px', fontSize: 14, lineHeight: 1 }}>✕</button>
           </div>
-          <button type="button" onClick={onClearGeo} className="text-[#3a3d50] hover:text-[#f0f0f5] text-xs ml-2 shrink-0">✕</button>
+        )}
+
+        {/* Country */}
+        <div>
+          <label className="section-label">Country</label>
+          <select
+            value={country}
+            onChange={e => setCountry(e.target.value)}
+            className="input-field"
+            style={{ appearance: 'none', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 24 24\'%3E%3Cpath fill=\'%2376777d\' d=\'M7 10l5 5 5-5z\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', paddingRight: 32 }}
+          >
+            {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
         </div>
-      )}
 
-      {/* Country */}
-      <div className="space-y-1.5 relative">
-        <label className="text-[10px] font-bold uppercase tracking-widest text-[#4a4d60] font-mono">Country</label>
-        <button
-          type="button"
-          onClick={() => setShowCountryMenu(!showCountryMenu)}
-          className="w-full flex items-center justify-between px-3.5 py-2.5 bg-[#0d0f1a] border border-[#1a1d2e] rounded-xl text-sm text-[#f0f0f5] hover:border-[#252840] transition-colors text-left focus-visible:outline-[#00d4ff]"
-        >
-          <span>{country}</span>
-          <IconChevronDown size={14} stroke={1.5} className={`text-[#4a4d60] transition-transform ${showCountryMenu ? 'rotate-180' : ''}`} />
-        </button>
-
-        {showCountryMenu && (
-          <div className="absolute left-0 right-0 z-50 mt-1 bg-[#0d0f1a] border border-[#1a1d2e] rounded-xl shadow-2xl overflow-hidden">
+        {/* City with autocomplete */}
+        <div ref={suggestBoxRef} style={{ position: 'relative' }}>
+          <label className="section-label">Target City</label>
+          <div style={{ position: 'relative' }}>
+            <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 16 }}>📍</span>
             <input
               type="text"
-              placeholder="Search..."
-              value={countrySearch}
-              onChange={e => setCountrySearch(e.target.value)}
-              className="w-full px-3 py-2.5 bg-[#08090e] text-xs text-[#f0f0f5] border-b border-[#1a1d2e] focus:outline-none placeholder-[#3a3d50] font-mono"
-              autoFocus
+              required
+              value={city}
+              onChange={e => { setCity(e.target.value); setShowSuggestions(true) }}
+              onFocus={() => setShowSuggestions(true)}
+              placeholder="e.g. Austin, Lagos, London"
+              className="input-field"
+              style={{ paddingLeft: 34 }}
+              autoComplete="off"
             />
-            <div className="max-h-48 overflow-y-auto">
-              {filtered.map(c => (
+            {loadingSuggestions && (
+              <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#76777d' }}>...</span>
+            )}
+          </div>
+
+          {showSuggestions && suggestions.length > 0 && (
+            <div style={{
+              position: 'absolute', left: 0, right: 0, top: '100%', marginTop: 4,
+              background: 'white', border: '1px solid #c6c6cd', borderRadius: 10,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 100, overflow: 'hidden',
+              maxHeight: 220, overflowY: 'auto',
+            }}>
+              {suggestions.map((s, i) => (
                 <button
-                  key={c}
+                  key={i}
                   type="button"
-                  onClick={() => { setCountry(c); setShowCountryMenu(false); setCountrySearch('') }}
-                  className="w-full flex items-center justify-between px-3.5 py-2 text-xs text-[#8888aa] hover:bg-[#00d4ff]/5 hover:text-white transition-colors text-left"
+                  onClick={() => {
+                    setCity(s.label)
+                    setShowSuggestions(false)
+                  }}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '10px 12px', background: 'none', border: 'none',
+                    borderBottom: i < suggestions.length - 1 ? '1px solid #f0edef' : 'none',
+                    color: '#1b1b1d', fontSize: 13, cursor: 'pointer', textAlign: 'left',
+                    transition: 'background 0.1s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#f6f3f5')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'none')}
                 >
-                  {c}
-                  {country === c && <IconCheck size={12} stroke={2} className="text-[#00d4ff]" />}
+                  <span style={{ fontSize: 13 }}>📍</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.label}</span>
                 </button>
               ))}
-              {filtered.length === 0 && (
-                <p className="px-3.5 py-3 text-xs text-[#3a3d50] text-center font-mono">No results</p>
-              )}
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* City */}
-      <div className="space-y-1.5">
-        <label className="text-[10px] font-bold uppercase tracking-widest text-[#4a4d60] font-mono">City / Region</label>
-        <div className="relative">
-          <IconMapPin size={14} stroke={1.5} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#3a3d50]" />
-          <input
-            type="text"
-            required
-            value={city}
-            onChange={e => setCity(e.target.value)}
-            placeholder="e.g. Austin, Lagos, London"
-            className="w-full pl-9 pr-3.5 py-2.5 bg-[#0d0f1a] border border-[#1a1d2e] rounded-xl text-sm text-[#f0f0f5] placeholder-[#3a3d50] focus:border-[#00d4ff]/40 focus:outline-none transition-colors"
-          />
+          )}
         </div>
-      </div>
 
-      {/* Category */}
-      <div className="space-y-2 border-t border-[#1a1d2e] pt-4">
-        <div className="flex items-center justify-between">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-[#4a4d60] font-mono">Business Type</label>
+        {/* Category */}
+        <div style={{ paddingTop: 16, borderTop: '1px solid #e4e2e4' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <label className="section-label" style={{ marginBottom: 0 }}>Business Category</label>
+            <button
+              type="button"
+              onClick={() => setUseCustom(!useCustom)}
+              style={{ fontSize: 11, color: '#006591', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600 }}
+            >
+              {useCustom ? 'Use presets' : 'Custom'}
+            </button>
+          </div>
+          {useCustom ? (
+            <input
+              type="text" required value={customCat}
+              onChange={e => setCustomCat(e.target.value)}
+              placeholder="e.g. Wedding photographer"
+              className="input-field"
+            />
+          ) : (
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 14 }}>🏢</span>
+              <select
+                value={category}
+                onChange={e => setCategory(e.target.value)}
+                className="input-field"
+                style={{ paddingLeft: 34, appearance: 'none', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 24 24\'%3E%3Cpath fill=\'%2376777d\' d=\'M7 10l5 5 5-5z\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', paddingRight: 32 }}
+              >
+                {CATEGORY_NAMES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          )}
+        </div>
+
+        {/* Radius slider */}
+        <div style={{ paddingTop: 16, borderTop: '1px solid #e4e2e4' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <label className="section-label" style={{ marginBottom: 0 }}>Radius</label>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#006591', fontFamily: 'JetBrains Mono, monospace' }}>{radiusDisplay}km</span>
+          </div>
+          <input
+            type="range" min={1} max={50} step={1}
+            value={radiusDisplay}
+            onChange={e => {
+              const v = Number(e.target.value)
+              setRadiusDisplay(v)
+              setRadius(v * 1000)
+            }}
+            style={{ width: '100%', height: 4, borderRadius: 99, cursor: 'pointer' }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#76777d', fontFamily: 'JetBrains Mono, monospace', marginTop: 4, padding: '0 2px' }}>
+            <span>1km</span><span>50km</span>
+          </div>
+        </div>
+
+        {/* Toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: '#f6f3f5', borderRadius: 12, border: '1px solid #e4e2e4' }}>
+          <div>
+            <p style={{ fontSize: 14, fontWeight: 600, color: '#1b1b1d' }}>No Website Only</p>
+            <p style={{ fontSize: 12, color: '#45464d', marginTop: 1 }}>Filter businesses with sites</p>
+          </div>
           <button
             type="button"
-            onClick={() => setUseCustom(!useCustom)}
-            className="flex items-center gap-1 text-[10px] text-[#00d4ff] font-bold font-mono hover:underline"
+            role="switch"
+            aria-checked={!showAll}
+            onClick={() => setShowAll(!showAll)}
+            className="toggle"
+            style={{ background: !showAll ? '#006591' : '#c6c6cd' }}
           >
-            <IconSparkles size={10} stroke={2} />
-            {useCustom ? 'Use presets' : 'Custom'}
+            <span className="toggle-thumb" style={{ left: !showAll ? 23 : 3 }} />
           </button>
         </div>
-        {useCustom ? (
-          <input
-            type="text"
-            required
-            value={customCat}
-            onChange={e => setCustomCat(e.target.value)}
-            placeholder="e.g. Wedding photographer"
-            className="w-full px-3.5 py-2.5 bg-[#0d0f1a] border border-[#1a1d2e] rounded-xl text-sm text-[#f0f0f5] placeholder-[#3a3d50] focus:border-[#00d4ff]/40 focus:outline-none transition-colors"
-          />
-        ) : (
-          <div className="relative">
-            <select
-              value={category}
-              onChange={e => setCategory(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-[#0d0f1a] border border-[#1a1d2e] rounded-xl text-sm text-[#f0f0f5] focus:border-[#00d4ff]/40 focus:outline-none transition-colors cursor-pointer appearance-none"
-            >
-              {CATEGORY_NAMES.map(c => (
-                <option key={c} value={c} className="bg-[#0d0f1a]">{c}</option>
-              ))}
-            </select>
-            <IconChevronDown size={14} stroke={1.5} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#4a4d60] pointer-events-none" />
-          </div>
-        )}
       </div>
 
-      {/* Radius */}
-      <div className="space-y-2 border-t border-[#1a1d2e] pt-4">
-        <label className="text-[10px] font-bold uppercase tracking-widest text-[#4a4d60] font-mono">Search Radius</label>
-        <div className="grid grid-cols-5 gap-1.5">
-          {RADIUS_OPTIONS.map(opt => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => setRadius(opt.value)}
-              className={`py-2 text-[11px] font-mono font-bold rounded-lg border transition-all ${
-                radius === opt.value
-                  ? 'bg-[#00d4ff]/10 border-[#00d4ff]/40 text-[#00d4ff]'
-                  : 'bg-[#0d0f1a] border-[#1a1d2e] text-[#4a4d60] hover:text-[#8888aa] hover:border-[#252840]'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Mode toggle */}
-      <div className="flex items-center justify-between px-3.5 py-2.5 bg-[#0d0f1a] border border-[#1a1d2e] rounded-xl">
-        <div>
-          <p className="text-xs font-semibold text-[#8888aa]">No Website Only</p>
-          <p className="text-[10px] text-[#3a3d50] font-mono mt-0.5">Filter out businesses with sites</p>
-        </div>
+      {/* CTA */}
+      <div style={{ paddingTop: 20, borderTop: '1px solid #e4e2e4', marginTop: 'auto' }}>
         <button
-          type="button"
-          role="switch"
-          aria-checked={!showAll}
-          onClick={() => setShowAll(!showAll)}
-          className={`relative w-10 h-5 rounded-full transition-colors ${!showAll ? 'bg-[#00d4ff]' : 'bg-[#1a1d2e]'}`}
+          type="submit"
+          disabled={loading || !city.trim()}
+          className="btn-primary"
+          style={{ width: '100%', justifyContent: 'center', padding: '12px 20px', fontSize: 15 }}
         >
-          <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${!showAll ? 'translate-x-5' : 'translate-x-0.5'}`} />
+          {loading ? (
+            <>
+              <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+              Scanning...
+            </>
+          ) : (
+            <>🔍 Apply Filters</>
+          )}
         </button>
       </div>
 
-      {/* Submit */}
-      <button
-        type="submit"
-        disabled={loading || !city.trim()}
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm uppercase tracking-wider transition-all
-          bg-[#00d4ff] text-[#08090e] hover:bg-[#00e1ff] active:scale-[0.98]
-          disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100
-          shadow-[0_0_24px_rgba(0,212,255,0.2)]"
-      >
-        {loading ? (
-          <><IconLoader2 size={16} stroke={2} className="animate-spin" /> Scanning...</>
-        ) : (
-          <><IconSearch size={16} stroke={2} /> Find Leads</>
-        )}
-      </button>
-
-      {/* Tips */}
-      <div className="border-t border-[#1a1d2e] pt-4 space-y-2">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-[#3a3d50] font-mono">Pro Tip</p>
-        <p className="text-[11px] text-[#4a4d60] leading-relaxed">
-          Businesses with high ratings but no website are your warmest leads. Call them with a live mockup ready.
-        </p>
-      </div>
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </form>
   )
 }
