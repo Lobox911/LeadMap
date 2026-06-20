@@ -30,6 +30,10 @@ export default function Home() {
   const [searchLabel, setSearchLabel] = useState<string | null>(null)
   const [filterNoWebsite, setFilterNoWebsite] = useState(true)
   const [filterMissingContact, setFilterMissingContact] = useState(false)
+  const [filterCompleteOnly, setFilterCompleteOnly] = useState(false)
+  const [sortPref, setSortPref] = useState<'default' | 'contact-first'>('default')
+  const [bulkMode, setBulkMode] = useState(false)
+  const [selectedForBulk, setSelectedForBulk] = useState<Set<string>>(new Set())
   const [textFilter, setTextFilter] = useState('')
   const lastParams = useRef<any>(null)
 
@@ -44,6 +48,8 @@ export default function Home() {
     setSelectedId(null)
     setTextFilter('')
     setMobileSearchOpen(false)
+    setBulkMode(false)
+    setSelectedForBulk(new Set())
     lastParams.current = params
 
     try {
@@ -95,17 +101,55 @@ export default function Home() {
     }, 100)
   }, [])
 
+  const toggleBulkSelect = useCallback((id: string) => {
+    setSelectedForBulk(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }, [])
+
   const savedIds = new Set(savedLeads.map(l => l.id))
 
-  const filtered = businesses.filter(b => {
-    if (filterNoWebsite && b.hasWebsite) return false
-    if (filterMissingContact && (b.phone || b.email)) return false
-    if (textFilter.trim()) {
-      const q = textFilter.toLowerCase()
-      return b.name.toLowerCase().includes(q) || b.address.toLowerCase().includes(q) || b.category.toLowerCase().includes(q)
-    }
-    return true
-  })
+  const filtered = businesses
+    .filter(b => {
+      if (filterNoWebsite && b.hasWebsite) return false
+      if (filterMissingContact && (b.phone || b.email)) return false
+      if (filterCompleteOnly) {
+        const hasAddress = b.address && b.address !== 'Address not listed'
+        const hasContact = b.phone || b.email
+        if (!hasAddress || !hasContact) return false
+      }
+      if (textFilter.trim()) {
+        const q = textFilter.toLowerCase()
+        return b.name.toLowerCase().includes(q) || b.address.toLowerCase().includes(q) || b.category.toLowerCase().includes(q)
+      }
+      return true
+    })
+    .sort((a, b) => {
+      if (sortPref !== 'contact-first') return 0
+      const score = (x: Business) => {
+        let s = 0
+        if (x.address && x.address !== 'Address not listed') s += 1
+        if (x.phone) s += 1
+        if (x.email) s += 1
+        return s
+      }
+      return score(b) - score(a)
+    })
+
+  const handleBulkSave = useCallback(() => {
+    const toSave = filtered.filter(b => selectedForBulk.has(b.id))
+    let updated = savedLeads
+    toSave.forEach(b => {
+      if (!updated.find(l => l.id === b.id)) {
+        updated = saveLead(b)
+      }
+    })
+    setSavedLeads(updated)
+    setSelectedForBulk(new Set())
+    setBulkMode(false)
+  }, [filtered, selectedForBulk, savedLeads])
 
   const noWebsiteCount = businesses.filter(b => !b.hasWebsite).length
 
@@ -224,9 +268,57 @@ export default function Home() {
                     >
                       Has Phone or Email
                     </button>
+                    <button
+                      onClick={() => setFilterCompleteOnly(!filterCompleteOnly)}
+                      style={{
+                        padding: '5px 10px', borderRadius: 6, cursor: 'pointer',
+                        fontSize: 11, fontWeight: 600, fontFamily: 'JetBrains Mono, monospace',
+                        border: filterCompleteOnly ? '1px solid #009668' : '1px solid #c6c6cd',
+                        background: filterCompleteOnly ? '#d4f5e6' : 'white',
+                        color: filterCompleteOnly ? '#009668' : '#45464d',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      Complete Info Only
+                    </button>
+                    <button
+                      onClick={() => setSortPref(sortPref === 'contact-first' ? 'default' : 'contact-first')}
+                      style={{
+                        padding: '5px 10px', borderRadius: 6, cursor: 'pointer',
+                        fontSize: 11, fontWeight: 600, fontFamily: 'JetBrains Mono, monospace',
+                        border: sortPref === 'contact-first' ? '1px solid #006591' : '1px solid #c6c6cd',
+                        background: sortPref === 'contact-first' ? '#c9e6ff' : 'white',
+                        color: sortPref === 'contact-first' ? '#006591' : '#45464d',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      ↑ Sort by Completeness
+                    </button>
+                    <button
+                      onClick={() => { setBulkMode(!bulkMode); setSelectedForBulk(new Set()) }}
+                      style={{
+                        padding: '5px 10px', borderRadius: 6, cursor: 'pointer',
+                        fontSize: 11, fontWeight: 600, fontFamily: 'JetBrains Mono, monospace',
+                        border: bulkMode ? '1px solid #006591' : '1px solid #c6c6cd',
+                        background: bulkMode ? '#006591' : 'white',
+                        color: bulkMode ? 'white' : '#45464d',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      {bulkMode ? '✕ Cancel Select' : '☑ Select Multiple'}
+                    </button>
                   </div>
                 )}
               </div>
+
+              {bulkMode && selectedForBulk.size > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, padding: '8px 12px', background: '#c9e6ff', borderRadius: 8 }}>
+                  <span style={{ fontSize: 12, color: '#006591', fontWeight: 600 }}>{selectedForBulk.size} selected</span>
+                  <button onClick={handleBulkSave} className="btn-primary" style={{ padding: '6px 14px', fontSize: 12 }}>
+                    Save Selected
+                  </button>
+                </div>
+              )}
 
               {businesses.length > 0 && (
                 <div style={{ position: 'relative' }}>
@@ -310,7 +402,7 @@ export default function Home() {
                 >
                   <span style={{ fontSize: 40 }}>🔎</span>
                   <p style={{ fontSize: 13, color: '#45464d' }}>No results match your filters</p>
-                  <button onClick={() => { setFilterNoWebsite(false); setFilterMissingContact(false); setTextFilter('') }} className="btn-ghost" style={{ fontSize: 12 }}>Clear filters</button>
+                  <button onClick={() => { setFilterNoWebsite(false); setFilterMissingContact(false); setFilterCompleteOnly(false); setTextFilter('') }} className="btn-ghost" style={{ fontSize: 12 }}>Clear filters</button>
                 </motion.div>
               )}
 
@@ -328,6 +420,9 @@ export default function Home() {
                     isSelected={selectedId === b.id}
                     onToggleSave={handleToggleSave}
                     onSelect={handleSelectBusiness}
+                    bulkMode={bulkMode}
+                    isBulkSelected={selectedForBulk.has(b.id)}
+                    onToggleBulkSelect={toggleBulkSelect}
                   />
                 </motion.div>
               ))}

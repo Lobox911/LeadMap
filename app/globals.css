@@ -295,6 +295,14 @@ body {
   font-size: 9px !important;
 }
 
+/* Fix: keep Leaflet panes/controls below header dropdowns */
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom,
+.leaflet-control {
+  z-index: 10 !important;
+}
+
 /* Table styles */
 .data-table { width: 100%; border-collapse: collapse; }
 .data-table th {
