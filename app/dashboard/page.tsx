@@ -35,9 +35,71 @@ export default function Home() {
   const [bulkMode, setBulkMode] = useState(false)
   const [selectedForBulk, setSelectedForBulk] = useState<Set<string>>(new Set())
   const [textFilter, setTextFilter] = useState('')
+  const [resolvingAddresses, setResolvingAddresses] = useState<Set<string>>(new Set())
   const lastParams = useRef<any>(null)
+  const backgroundRunId = useRef(0)
 
   useEffect(() => { setSavedLeads(getSavedLeads()) }, [])
+
+  // Verifies every lead OSM didn't already confirm, in small batches, so the
+  // initial search stays fast but the badges settle into accurate states
+  // (Has Website / No Website / Unconfirmed) within a few seconds rather than
+  // only checking the first 10 and guessing for the rest.
+  const runBackgroundVerification = useCallback(async (initial: Business[], location: string, runId: number) => {
+    const pending = initial.filter(b => b.confidence === 'pending')
+    const BATCH_SIZE = 15
+    for (let i = 0; i < pending.length; i += BATCH_SIZE) {
+      if (backgroundRunId.current !== runId) return
+      const batch = pending.slice(i, i + BATCH_SIZE)
+      try {
+        const res = await fetch('/api/verify-batch', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            businesses: batch.map(b => ({ id: b.id, name: b.name, address: b.address, hasWebsite: b.hasWebsite, website: b.website })),
+            location,
+          }),
+        })
+        if (!res.ok) continue
+        const { results } = await res.json()
+        if (backgroundRunId.current !== runId) return
+        setBusinesses(prev => prev.map(b => {
+          const r = results[b.id]
+          return r ? { ...b, hasWebsite: r.hasWebsite, website: r.websiteUrl || b.website, confidence: r.confidence } : b
+        }))
+      } catch {
+        // Skip this batch on a network hiccup, keep going with the rest.
+      }
+    }
+  }, [])
+
+  // Reverse-geocodes leads OSM left without an address, one at a time and
+  // gently spaced, since this funnels through Nominatim's free service which
+  // expects ~1 request/sec.
+  const runAddressResolution = useCallback(async (initial: Business[], runId: number) => {
+    const missing = initial.filter(b => b.address === 'Address not listed' && b.lat != null && b.lon != null)
+    for (const b of missing) {
+      if (backgroundRunId.current !== runId) return
+      setResolvingAddresses(prev => new Set(prev).add(b.id))
+      try {
+        const res = await fetch('/api/reverse-geocode', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lat: b.lat, lon: b.lon }),
+        })
+        if (res.ok) {
+          const { address } = await res.json()
+          if (address && backgroundRunId.current === runId) {
+            setBusinesses(prev => prev.map(x => x.id === b.id ? { ...x, address } : x))
+          }
+        }
+      } catch {
+        // Leave it as "Address not listed" - the manual "Find address" link still works.
+      } finally {
+        setResolvingAddresses(prev => { const next = new Set(prev); next.delete(b.id); return next })
+      }
+      if (backgroundRunId.current !== runId) return
+      await new Promise(r => setTimeout(r, 1100))
+    }
+  }, [])
 
   const handleSearch = useCallback(async (params: {
     location: string; category: string; radius: number; showAll: boolean
@@ -51,6 +113,8 @@ export default function Home() {
     setBulkMode(false)
     setSelectedForBulk(new Set())
     lastParams.current = params
+    const runId = ++backgroundRunId.current
+    setResolvingAddresses(new Set())
 
     try {
       const geoRes = await fetch('/api/geocode', {
@@ -74,6 +138,8 @@ export default function Home() {
       const data = await searchRes.json()
       setBusinesses(data.results)
       setFilterNoWebsite(true)
+      runBackgroundVerification(data.results, params.location, runId)
+      runAddressResolution(data.results, runId)
     } catch (err: any) {
       setError(err.message || 'Something went wrong')
       setBusinesses([])
@@ -423,6 +489,7 @@ export default function Home() {
                     bulkMode={bulkMode}
                     isBulkSelected={selectedForBulk.has(b.id)}
                     onToggleBulkSelect={toggleBulkSelect}
+                    isResolvingAddress={resolvingAddresses.has(b.id)}
                   />
                 </motion.div>
               ))}

@@ -12,9 +12,10 @@ interface Props {
   bulkMode?: boolean
   isBulkSelected?: boolean
   onToggleBulkSelect?: (id: string) => void
+  isResolvingAddress?: boolean
 }
 
-export default function BusinessCard({ business, isSaved, isSelected, onToggleSave, onSelect, bulkMode, isBulkSelected, onToggleBulkSelect }: Props) {
+export default function BusinessCard({ business, isSaved, isSelected, onToggleSave, onSelect, bulkMode, isBulkSelected, onToggleBulkSelect, isResolvingAddress }: Props) {
   const telLink = business.phone ? 'tel:' + business.phone : null
   const mailLink = business.email ? 'mailto:' + business.email : null
   const hasAddress = business.address && business.address !== 'Address not listed'
@@ -66,7 +67,7 @@ export default function BusinessCard({ business, isSaved, isSelected, onToggleSa
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
-        <StatusBadge hasWebsite={business.hasWebsite} />
+        <StatusBadge hasWebsite={business.hasWebsite} confidence={business.confidence} />
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 10, borderTop: '1px solid #e4e2e4' }}>
@@ -74,6 +75,11 @@ export default function BusinessCard({ business, isSaved, isSelected, onToggleSa
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7 }}>
             <span style={{ fontSize: 12, flexShrink: 0, marginTop: 1 }}>📍</span>
             <span style={{ fontSize: 12, color: '#45464d', lineHeight: 1.4 }}>{business.address}</span>
+          </div>
+        ) : isResolvingAddress ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#c6c6cd' }}>
+            <span style={{ fontSize: 12 }}>📍</span>
+            <span style={{ fontSize: 12, fontStyle: 'italic' }}>Locating address…</span>
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, justifyContent: 'space-between' }}>

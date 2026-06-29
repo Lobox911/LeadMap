@@ -152,6 +152,31 @@ body {
   letter-spacing: 0.06em; text-transform: uppercase;
   font-family: var(--mono);
 }
+.badge-checking {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px;
+  background: #e4e2e4;
+  color: #76777d;
+  border-radius: 99px;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  font-family: var(--mono);
+  animation: pulse-checking 1.6s ease-in-out infinite;
+}
+@keyframes pulse-checking {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.badge-unconfirmed {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px;
+  background: #fdecc8;
+  color: #92660a;
+  border-radius: 99px;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  font-family: var(--mono);
+}
 
 /* Outreach status badges */
 .badge-contacted {

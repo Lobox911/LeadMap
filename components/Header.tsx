@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { Business } from '@/types'
 import { exportToCsv, exportToJson } from '@/lib/exportUtils'
+import { UserButton } from '@clerk/nextjs'
+
 
 interface Props {
   activeTab: 'search' | 'leads'
@@ -187,8 +189,9 @@ export default function Header({ activeTab, onTabChange, savedCount, resultsCoun
 
         {/* Upgrade button — compact on mobile */}
         <a href="/#pricing" className="btn-primary" style={{ borderRadius: 99, padding: '7px 14px', fontSize: 12, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-          Upgrade
-        </a>
+  Upgrade
+</a>
+<UserButton afterSignOutUrl="/" />
       </div>
     </header>
   )

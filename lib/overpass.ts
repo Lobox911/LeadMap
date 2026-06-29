@@ -49,6 +49,9 @@ function mapElement(el: any, category: string): Business {
     openingHours: tags.opening_hours || null,
     hasWebsite: Boolean(website),
     website,
+    // OSM tagging it is good enough to trust outright; otherwise we genuinely
+    // don't know yet - background verification fills this in afterwards.
+    confidence: website ? 'confirmed' : 'pending',
     osmLink: 'https://www.openstreetmap.org/' + el.type + '/' + el.id,
     lat: el.lat !== undefined ? el.lat : (el.center ? el.center.lat : null),
     lon: el.lon !== undefined ? el.lon : (el.center ? el.center.lon : null),

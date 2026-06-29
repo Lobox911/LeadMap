@@ -6,10 +6,10 @@ function esc(val: unknown): string {
 }
 
 export function exportToCsv(businesses: Business[], filename = 'websitegap-leads.csv'): void {
-  const headers = ['Name','Category','Address','Phone','Email','Opening Hours','No Website','Website URL','OSM Link','Lat','Lon']
+  const headers = ['Name','Category','Address','Phone','Email','Opening Hours','No Website','Confidence','Website URL','OSM Link','Lat','Lon']
   const rows = businesses.map(b => [
     b.name, b.category, b.address, b.phone, b.email,
-    b.openingHours, b.hasWebsite ? 'NO' : 'YES',
+    b.openingHours, b.hasWebsite ? 'NO' : 'YES', b.confidence,
     b.website, b.osmLink, b.lat, b.lon,
   ])
   const csv = [headers.join(','), ...rows.map(r => r.map(esc).join(','))].join('\r\n')

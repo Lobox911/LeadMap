@@ -2,6 +2,8 @@
 
 import Link from 'next/link'
 import { motion } from 'motion/react'
+import { SignedIn, SignedOut, UserButton } from '@clerk/nextjs'
+
 
 export default function LandingPage() {
   const scrollTo = (id: string) => {
@@ -21,10 +23,20 @@ export default function LandingPage() {
             <button onClick={() => scrollTo('pricing')} style={{ color: '#45464d', fontSize: 14, padding: '20px 8px', background: 'none', border: 'none', cursor: 'pointer' }}>Pricing</button>
           </div>
         </div>
+
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <Link href="/dashboard?tab=leads" aria-label="Saved leads" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, padding: 8, borderRadius: '50%', textDecoration: 'none' }}>♡</Link>
-          <Link href="/dashboard" className="btn-primary" style={{ borderRadius: 8, padding: '8px 24px', textDecoration: 'none' }}>Upgrade</Link>
-        </div>
+  <SignedOut>
+    <Link href="/sign-in" style={{ fontSize: 14, color: '#45464d', textDecoration: 'none' }}>Sign in</Link>
+    <Link href="/sign-up" className="btn-primary" style={{ borderRadius: 8, padding: '8px 24px', textDecoration: 'none' }}>Get Started</Link>
+  </SignedOut>
+  <SignedIn>
+    <Link href="/dashboard" className="btn-primary" style={{ borderRadius: 8, padding: '8px 24px', textDecoration: 'none' }}>Dashboard</Link>
+    <UserButton />
+  </SignedIn>
+</div>
+
+
       </nav>
 
       {/* Hero */}
